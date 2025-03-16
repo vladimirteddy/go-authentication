@@ -1,0 +1,69 @@
+name: Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run migrations on"
+        required: true
+        default: "DEV"
+        options:
+          - DEV
+          - UAT
+          - PROD
+      command:
+        description: "Command to run migrations"
+        required: true
+        default: "up"
+        options:
+          - up
+          - up-to
+          - down
+          - down-to
+      version:
+        description: "Version to run migrations to or from"
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "1.17"
+
+      - name: Install Goose
+        run: go install github.com/pressly/goose/v3/cmd/goose@latest
+
+      - name: Run Migrations
+        if: ${{ github.event.inputs.command == 'up' }}
+        env:
+          GOOSE_DRIVER: postgres
+          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+        run: make up
+
+      - name: Run Migrations Up To
+        if: ${{ github.event.inputs.command == 'up-to' }}
+        env:
+          GOOSE_DRIVER: postgres
+          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+        run: make up-to version=${{ github.event.inputs.version }}
+
+      - name: Run Migrations Down
+        if: ${{ github.event.inputs.command == 'down' }}
+        env:
+          GOOSE_DRIVER: postgres
+          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+        run: make down
+
+      - name: Run Migrations Down To
+        if: ${{ github.event.inputs.command == 'down-to' }}
+        env:
+          GOOSE_DRIVER: postgres
+          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+        run: make down-to version=${{ github.event.inputs.version }}

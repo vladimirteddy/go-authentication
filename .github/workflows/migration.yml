@@ -44,26 +44,26 @@ jobs:
         if: ${{ github.event.inputs.command == 'up' }}
         env:
           GOOSE_DRIVER: postgres
-          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+          GOOSE_DBSTRING: ${{ secrets[format('GOOSE_DBSTRING_{0}', github.event.inputs.environment)] }}
         run: make up
 
       - name: Run Migrations Up To
         if: ${{ github.event.inputs.command == 'up-to' }}
         env:
           GOOSE_DRIVER: postgres
-          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+          GOOSE_DBSTRING: ${{ secrets[format('GOOSE_DBSTRING_{0}', github.event.inputs.environment)] }}
         run: make up-to version=${{ github.event.inputs.version }}
 
       - name: Run Migrations Down
         if: ${{ github.event.inputs.command == 'down' }}
         env:
           GOOSE_DRIVER: postgres
-          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+          GOOSE_DBSTRING: ${{ secrets[format('GOOSE_DBSTRING_{0}', github.event.inputs.environment)] }}
         run: make down
 
       - name: Run Migrations Down To
         if: ${{ github.event.inputs.command == 'down-to' }}
         env:
           GOOSE_DRIVER: postgres
-          GOOSE_DBSTRING: ${{ secrets['GOOSE_DBSTRING_' + github.event.inputs.environment] }}
+          GOOSE_DBSTRING: ${{ secrets[format('GOOSE_DBSTRING_{0}', github.event.inputs.environment)] }}
         run: make down-to version=${{ github.event.inputs.version }}

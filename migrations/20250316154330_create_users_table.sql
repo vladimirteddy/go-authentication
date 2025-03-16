@@ -1,4 +1,4 @@
--- Up
+-- +goose Up
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) UNIQUE NOT NULL,
@@ -8,5 +8,5 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- Down
+-- +goose Down
 DROP TABLE IF EXISTS users; 

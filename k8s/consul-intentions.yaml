@@ -1,0 +1,10 @@
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: go-authentication-intentions
+spec:
+  destination:
+    name: go-authentication
+  sources:
+    - name: kong-kong-proxy
+      action: allow

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - consul-defaults.yaml
+  - consul-intentions.yaml
+  - ingress.yaml
+  - namespace.yaml
+
+namespace: auth-system
+# Uncomment and modify this section to set the Docker registry
+#images:
+#- name: ${DOCKER_REGISTRY}/go-authentication
+#  newName: your-registry.io/go-authentication
+#  newTag: latest

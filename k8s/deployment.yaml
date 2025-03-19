@@ -5,7 +5,7 @@ metadata:
   labels:
     app: go-authentication
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: go-authentication
@@ -16,13 +16,25 @@ spec:
       annotations:
         consul.hashicorp.com/connect-inject: "true"
         consul.hashicorp.com/service-meta-version: "1.0"
+        traefik.ingress.kubernetes.io/router.middlewares: "auth-rate-limit,cors-headers"
+        traefik.ingress.kubernetes.io/router.tls: "true"
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
       containers:
         - name: go-authentication
-          image: ${DOCKER_REGISTRY}/go-authentication:latest
-          imagePullPolicy: Always
+          image: go-authentication:latest
+          imagePullPolicy: Never
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
-            - containerPort: 8080
+            - containerPort: 8081
           env:
             - name: DB_HOST
               valueFrom:
@@ -69,12 +81,18 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 8081
             initialDelaySeconds: 15
             periodSeconds: 20
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

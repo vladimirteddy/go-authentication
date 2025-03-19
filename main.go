@@ -17,23 +17,83 @@ func init() {
 }
 
 func main() {
-	request := gin.Default()
+	router := gin.Default()
 
-	// Initialize the user repository and service
+	// Initialize repositories
 	userRepo := postgres.NewUserRepository(initializers.DB)
-	userService := services.NewUserService(userRepo)
+	roleRepo := postgres.NewRoleRepository(initializers.DB)
+	permissionRepo := postgres.NewPermissionRepository(initializers.DB)
 
-	// Create an instance of the AuthController
+	// Initialize services
+	userService := services.NewUserService(userRepo, roleRepo, permissionRepo)
+	roleService := services.NewRoleService(roleRepo)
+	permissionService := services.NewPermissionService(permissionRepo)
+
+	// Initialize controllers
 	authController := controllers.NewAuthController(userService)
+	roleController := controllers.NewRoleController(roleService, userService)
+	permissionController := controllers.NewPermissionController(permissionService)
+	traefikController := controllers.NewTraefikController(userService, permissionService)
 
-	// Use the methods from the authController instance
-	request.POST("/auth/signup", authController.CreateUser)
-	request.POST("/auth/login", authController.Login)
-	request.GET("/user/profile", middlewares.CheckAuth, authController.GetUserProfile)
-
-	request.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"data": "pong"})
+	// Health check endpoint
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "UP"})
 	})
 
-	request.Run(":8080")
+	// Auth routes
+	auth := router.Group("/auth")
+	{
+		auth.POST("/signup", authController.CreateUser)
+		auth.POST("/login", authController.Login)
+	}
+
+	// User routes (protected)
+	user := router.Group("/user")
+	user.Use(middlewares.CheckAuth)
+	{
+		user.GET("/profile", authController.GetUserProfile)
+	}
+
+	// Role management routes (protected)
+	roles := router.Group("/roles")
+	roles.Use(middlewares.CheckAuth)
+	{
+		roles.POST("", roleController.CreateRole)
+		roles.GET("", roleController.GetAllRoles)
+		roles.GET("/:id", roleController.GetRoleByID)
+		roles.PUT("/:id", roleController.UpdateRole)
+		roles.DELETE("/:id", roleController.DeleteRole)
+		roles.POST("/assign", roleController.AssignRoleToUser)
+		roles.POST("/remove", roleController.RemoveRoleFromUser)
+	}
+
+	// Permission management routes (protected)
+	permissions := router.Group("/permissions")
+	permissions.Use(middlewares.CheckAuth)
+	{
+		permissions.POST("", permissionController.CreatePermission)
+		permissions.GET("", permissionController.GetAllPermissions)
+		permissions.GET("/:id", permissionController.GetPermissionByID)
+		permissions.GET("/resource/:resource", permissionController.GetPermissionsByResource)
+		permissions.PUT("/:id", permissionController.UpdatePermission)
+		permissions.DELETE("/:id", permissionController.DeletePermission)
+		permissions.POST("/assign", permissionController.AssignPermissionToRole)
+		permissions.POST("/remove", permissionController.RemovePermissionFromRole)
+		permissions.POST("/check", permissionController.CheckPermission)
+	}
+
+	// Traefik authentication endpoints
+	traefik := router.Group("/traefik")
+	{
+		// Forward auth endpoint for Traefik
+		traefik.GET("/auth", traefikController.AuthorizeRequest)
+		// You could also make this support other HTTP methods if needed
+		traefik.POST("/auth", traefikController.AuthorizeRequest)
+		traefik.PUT("/auth", traefikController.AuthorizeRequest)
+		traefik.DELETE("/auth", traefikController.AuthorizeRequest)
+	}
+
+	// Start the server
+	port := initializers.GetEnvWithDefault("PORT", "8080")
+	router.Run(":" + port)
 }

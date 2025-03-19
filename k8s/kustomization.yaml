@@ -7,8 +7,8 @@ resources:
   - service.yaml
   - consul-defaults.yaml
   - consul-intentions.yaml
-  - ingress.yaml
   - namespace.yaml
+  # Removed ingress.yaml as we'll use external Traefik
 
 namespace: auth-system
 # Uncomment and modify this section to set the Docker registry

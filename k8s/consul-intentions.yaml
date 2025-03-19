@@ -6,5 +6,5 @@ spec:
   destination:
     name: go-authentication
   sources:
-    - name: kong-kong-proxy
+    - name: traefik
       action: allow

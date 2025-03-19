@@ -4,6 +4,10 @@ metadata:
   name: go-authentication
   labels:
     app: go-authentication
+  annotations:
+    traefik.ingress.kubernetes.io/service-weights: "100"
+    traefik.ingress.kubernetes.io/affinity: "true"
+    traefik.ingress.kubernetes.io/load-balancer-method: "drr"
 spec:
   selector:
     app: go-authentication

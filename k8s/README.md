@@ -1,125 +1,134 @@
-# Kubernetes Deployment for Go Authentication Service
+# Kubernetes Deployment Guide
 
-This directory contains Kubernetes manifests for deploying the Go Authentication service with Consul service mesh and Kong API Gateway integration.
+This directory contains Kubernetes manifests for deploying the Go Authentication Service with Traefik integration.
+
+## Components
+
+- `deployment.yaml`: Defines the authentication service deployment with security contexts and resource limits
+- `service.yaml`: Defines the ClusterIP service with Traefik-specific annotations
+- `ingress.yaml`: Configures Traefik IngressRoute with TLS and middleware
+- `configmap.yaml`: Contains non-sensitive configuration
+- `secret.yaml`: Contains sensitive data (credentials, JWT secret)
+- `namespace.yaml`: Defines the service namespace
+- `consul-defaults.yaml`: Consul service defaults
+- `consul-intentions.yaml`: Consul service-to-service communication rules
 
 ## Prerequisites
 
-- Kubernetes cluster with Consul and Kong installed (follow the main implementation guide)
-- Docker registry with the go-authentication image pushed
-- Existing PostgreSQL database
-
-## Security Note
-
-This deployment uses a secure approach for handling sensitive information:
-
-- Database credentials and JWT secrets are not stored in the repository
-- Secrets are created at deployment time using the `build-and-deploy.sh` script
-- You will be prompted to enter credentials during deployment
-
-## Configuration
-
-Before deploying, update the following files:
-
-1. **configmap.yaml**: Update the `DB_HOST`, `DB_PORT`, and `DB_NAME` values to point to your existing PostgreSQL database
-2. **deployment.yaml**: Update `${DOCKER_REGISTRY}` with your actual Docker registry URL
-3. **build-and-deploy.sh**: Update the `DOCKER_REGISTRY` variable with your Docker registry URL
+1. Kubernetes cluster with Traefik installed
+2. Consul running in the cluster
+3. TLS certificate secret (referenced in ingress.yaml)
 
 ## Deployment
 
-The easiest way to deploy is using the provided script:
+1. Create the namespace:
 
-```bash
-# Make the script executable
-chmod +x build-and-deploy.sh
+   ```bash
+   kubectl apply -f namespace.yaml
+   ```
 
-# Run the deployment script
-./build-and-deploy.sh
-```
+2. Create secrets and configmap:
 
-The script will:
+   ```bash
+   kubectl apply -f secret.yaml
+   kubectl apply -f configmap.yaml
+   ```
 
-1. Prompt for database credentials and JWT secret
-2. Build and push the Docker image
-3. Create the Kubernetes namespace
-4. Create the Kubernetes secret with your credentials
-5. Deploy all resources using kustomize
-6. Provide the URL to access your service
+3. Deploy Consul configurations:
 
-## Manual Deployment
+   ```bash
+   kubectl apply -f consul-defaults.yaml
+   kubectl apply -f consul-intentions.yaml
+   ```
 
-If you prefer to deploy manually, follow these steps:
+4. Deploy the service:
 
-1. Create the namespace
+   ```bash
+   kubectl apply -f service.yaml
+   kubectl apply -f deployment.yaml
+   ```
 
-```bash
-kubectl apply -f namespace.yaml
-```
+5. Configure Traefik routing:
+   ```bash
+   kubectl apply -f ingress.yaml
+   ```
 
-2. Create the secret with your actual credentials
+## Security Features
 
-```bash
-kubectl create secret generic go-auth-secrets \
-  --from-literal=DB_USER=your-db-user \
-  --from-literal=DB_PASSWORD=your-db-password \
-  --from-literal=JWT_SECRET=your-jwt-secret \
-  -n auth-system
-```
+- Non-root container execution
+- Read-only root filesystem
+- Dropped capabilities
+- Rate limiting middleware
+- CORS protection
+- TLS encryption
 
-3. Deploy ConfigMap
+## Traefik Integration
 
-```bash
-kubectl apply -f configmap.yaml
-```
+The service is configured to work with Traefik through:
 
-4. Deploy Go Authentication service
+1. IngressRoute with:
 
-```bash
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-```
+   - TLS termination
+   - Path-based routing
+   - Rate limiting middleware
+   - CORS headers middleware
+   - Path stripping
 
-5. Deploy Consul configuration
+2. Service annotations for:
 
-```bash
-kubectl apply -f consul-defaults.yaml
-kubectl apply -f consul-intentions.yaml
-```
+   - Load balancing method (DRR)
+   - Session affinity
+   - Service weights
 
-6. Deploy Kong Ingress
+3. Deployment annotations for:
+   - Traefik middleware association
+   - TLS configuration
 
-```bash
-kubectl apply -f ingress.yaml
-```
+## Health Checks
 
-## Accessing the Service
+The service includes:
 
-Once deployed, the authentication service will be available at:
-
-```
-http://<KONG_PROXY_IP>/auth
-```
+- Readiness probe: `/health` endpoint (5s initial delay, 10s period)
+- Liveness probe: `/health` endpoint (15s initial delay, 20s period)
 
 ## Monitoring
 
-You can monitor the service through:
+The service exposes metrics for Prometheus at `/metrics` endpoint.
 
-1. Kubernetes dashboard
+## Scaling
 
-```bash
-kubectl get pods -n auth-system
-kubectl logs -f deployment/go-authentication -n auth-system
+The deployment is configured with:
+
+- 2 replicas by default
+- Resource requests and limits
+- Horizontal Pod Autoscaling (HPA) support
+
+## Troubleshooting
+
+1. Check pod status:
+
+   ```bash
+   kubectl get pods -l app=go-authentication
+   ```
+
+2. View pod logs:
+
+   ```bash
+   kubectl logs -l app=go-authentication
+   ```
+
+3. Check Traefik routing:
+
+   ```bash
+   kubectl get ingressroute
+   kubectl get middleware
+   ```
+
+4. Verify Consul service registration:
+   ```bash
+   kubectl exec -it consul-server-0 -- consul catalog services
+   ```
+
 ```
 
-2. Consul UI
-
-```bash
-# Get Consul UI address
-kubectl get svc consul-ui
-```
-
-3. Kong Manager (if installed)
-
-```bash
-# Get Kong Manager address
-kubectl get svc kong-kong-manager
 ```

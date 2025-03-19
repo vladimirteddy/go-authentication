@@ -11,6 +11,7 @@ type PostgresUser struct {
 
 type UserRepository interface {
 	GetByUsername(username string) (*PostgresUser, error)
+	GetByID(id uint) (*PostgresUser, error)
 	Create(user *PostgresUser) (*PostgresUser, error)
 	Update(user *PostgresUser) error
 }
@@ -35,6 +36,15 @@ func (r *userPostgresRepository) Create(user *PostgresUser) (*PostgresUser, erro
 func (r *userPostgresRepository) GetByUsername(username string) (*PostgresUser, error) {
 	var user PostgresUser
 	result := r.db.Where("username = ?", username).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+func (r *userPostgresRepository) GetByID(id uint) (*PostgresUser, error) {
+	var user PostgresUser
+	result := r.db.Where("id = ?", id).First(&user)
 	if result.Error != nil {
 		return nil, result.Error
 	}

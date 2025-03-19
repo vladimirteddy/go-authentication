@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-DOCKER_REGISTRY="your-registry.io"  # Replace with your Docker registry
+DOCKER_REGISTRY=${1:-"your-registry.io"}  # Pass your Docker registry as first argument
 IMAGE_NAME="go-authentication"
 IMAGE_TAG="latest"
 NAMESPACE="auth-system"
@@ -53,7 +53,7 @@ docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
 
 # Step 3: Create namespace if it doesn't exist
 echo -e "${GREEN}Creating namespace if it doesn't exist...${NC}"
-kubectl apply -f namespace.yaml
+kubectl apply -f k8s/namespace.yaml
 
 # Step 4: Create the secret with actual credentials
 echo -e "${GREEN}Creating Kubernetes secret with credentials...${NC}"
@@ -66,6 +66,7 @@ kubectl create secret generic go-auth-secrets \
 
 # Step 5: Update kustomization.yaml with the correct image
 echo -e "${GREEN}Updating kustomization.yaml...${NC}"
+cd k8s
 sed -i "s|#images:|images:|g" kustomization.yaml
 sed -i "s|#- name: \${DOCKER_REGISTRY}/go-authentication|- name: \${DOCKER_REGISTRY}/go-authentication|g" kustomization.yaml
 sed -i "s|#  newName: your-registry.io/go-authentication|  newName: ${DOCKER_REGISTRY}/${IMAGE_NAME}|g" kustomization.yaml
@@ -79,14 +80,26 @@ kubectl apply -k .
 echo -e "${GREEN}Waiting for deployment to be ready...${NC}"
 kubectl rollout status deployment/go-authentication -n ${NAMESPACE}
 
-# Step 8: Get service information
-echo -e "${GREEN}Getting service information...${NC}"
-echo "Go Authentication Service: $(kubectl get svc go-authentication -n ${NAMESPACE} -o jsonpath='{.metadata.name}')"
+# Step 8: Get node information for external Traefik configuration
+echo -e "${GREEN}Getting NodePort information for external Traefik configuration...${NC}"
+NODE_PORT=$(kubectl get svc go-authentication -n ${NAMESPACE} -o jsonpath='{.spec.ports[0].nodePort}')
+NODE_IPS=$(kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}')
 
-# Step 9: Get Kong Ingress information
-echo -e "${GREEN}Getting Kong Ingress information...${NC}"
-KONG_IP=$(kubectl get svc kong-kong-proxy -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-echo "Kong Proxy IP: ${KONG_IP}"
-echo "Go Authentication API is available at: http://${KONG_IP}/auth"
-
-echo -e "${YELLOW}Deployment completed successfully!${NC}" 
+echo -e "${YELLOW}Configuration for External Traefik:${NC}"
+echo "Go Authentication Service is now accessible at NodePort ${NODE_PORT} on your Kubernetes nodes."
+echo -e "Node IP addresses: ${NODE_IPS}"
+echo ""
+echo -e "${YELLOW}Update your external Traefik configuration:${NC}"
+echo "1. Edit /etc/traefik/dynamic/go-authentication.yaml"
+echo "2. Replace KUBERNETES_NODE_IP:NODEPORT_OR_PORT with one of your node IPs and the NodePort:"
+for IP in $NODE_IPS; do
+  echo "   - url: \"http://${IP}:${NODE_PORT}\""
+done
+echo "3. Restart Traefik: sudo systemctl restart traefik"
+echo ""
+echo -e "${GREEN}Go Authentication API will be available at: http://your-traefik-host/auth${NC}"
+echo -e "${YELLOW}Deployment completed successfully!${NC}"
+echo ""
+echo -e "${YELLOW}Note:${NC} For external Traefik setup instructions, see:"
+echo "      - Documentation: ../../architecture/traefik-external-setup.md"
+echo "      - Setup Script: ../../architecture/setup-external-traefik.sh" 

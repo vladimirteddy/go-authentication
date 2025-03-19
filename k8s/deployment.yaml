@@ -61,6 +61,11 @@ spec:
                 configMapKeyRef:
                   name: go-auth-config
                   key: DB_NAME
+            - name: DB_SSL_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: go-auth-config
+                  key: DB_SSL_MODE
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

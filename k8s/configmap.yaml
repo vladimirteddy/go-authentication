@@ -3,7 +3,8 @@ kind: ConfigMap
 metadata:
   name: go-auth-config
 data:
-  DB_HOST: "your-existing-postgres-host"
+  DB_HOST: "ep-noisy-river-a1m1axnl-pooler.ap-southeast-1.aws.neon.tech"
   DB_PORT: "5432"
-  DB_NAME: "auth_db"
-  PORT: "8080"
+  DB_NAME: "neonc"
+  PORT: "8081"
+  DB_SSL_MODE: "require"
